@@ -214,10 +214,50 @@ border-top:1px solid #caa43b;
 <a href="#">Support</a>
 </nav>
 
-<div class="auth">
-<a href="login.html">Login</a>
-<button class="register.html">Sign Up</button>
+<div class="auth-buttons">
+  <button onclick="window.location.href='login.html'" class="login-btn">
+    Login
+  </button>
+
+  <button onclick="window.location.href='register.html'" class="signup-btn">
+    Sign Up
+  </button>
 </div>
+
+<style>
+.auth-buttons{
+  display:flex;
+  gap:15px;
+}
+
+.login-btn{
+  background:#000;
+  color:#fff;
+  padding:10px 22px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+.signup-btn{
+  background:gold;
+  color:#000;
+  padding:10px 22px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+.login-btn:hover{
+  opacity:0.8;
+}
+
+.signup-btn:hover{
+  opacity:0.9;
+}
+</style>
 
 </header>
 
