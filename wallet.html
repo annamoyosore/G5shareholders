@@ -6,9 +6,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>My Wallet - PVPWIN</title>
+<title>Wallet - PVPWIN</title>
 
-<link rel="stylesheet" href="css/style.css?v=3.1">
+<link rel="stylesheet" href="css/style.css">
 
 <style>
 
@@ -58,9 +58,9 @@ cursor:pointer;
 #requestFundBtn{background:#16a34a;color:white;}
 #depositBtn{background:#10b981;color:white;}
 #withdrawBtn{background:#f59e0b;color:white;}
-#dashboardBtn{background:#c7b9ff;color:#2b1d5f;}
-#bankBtn{background:#a78bfa;color:white;}
-#updateBankBtn{background:#8b5cf6;color:white;}
+#dashboardBtn{background:#6366f1;color:white;}
+#bankBtn{background:#a855f7;color:white;}
+#updateBankBtn{background:#7c3aed;color:white;}
 #supportBtn{background:#0088cc;color:white;}
 #logoutBtn{background:#ef4444;color:white;}
 
@@ -106,7 +106,6 @@ Wallet Balance:
 <span id="walletBalance">Loading...</span>
 </div>
 
-
 <div class="section">
 
 <button id="requestFundBtn">FUND WALLET</button>
@@ -123,7 +122,6 @@ Wallet Balance:
 
 </div>
 
-
 <div class="section">
 
 <h3>Pending Requests</h3>
@@ -131,7 +129,6 @@ Wallet Balance:
 <div id="pendingRequests">Loading...</div>
 
 </div>
-
 
 <div class="section">
 
@@ -141,7 +138,6 @@ Wallet Balance:
 
 </div>
 
-
 <div class="section">
 
 <button id="supportBtn">Contact Support</button>
@@ -150,71 +146,69 @@ Wallet Balance:
 
 </div>
 
-
 <script type="module">
 
-import { walletActions } from "./js/wallet-actions.js?v=3.1";
+import { account } from "./js/appwrite.js";
+import { walletActions } from "./js/wallet-actions.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
 try{
 
+/* CHECK USER SESSION */
+
+const user = await account.get();
+
 /* INITIALIZE WALLET */
+/* wallet-actions.js will auto-create wallet if missing */
 
 await walletActions.initializeWallet();
 
-/* BUTTON ACTIONS */
+}catch(err){
 
-document
-.getElementById("requestFundBtn")
-.addEventListener("click", () => walletActions.requestFund());
+console.error("User session error:",err);
 
-document
-.getElementById("depositBtn")
-.addEventListener("click", () => {
+/* Redirect if no session */
+
+window.location.href="login.html";
+
+}
+
+/* BUTTON EVENTS */
+
+document.getElementById("requestFundBtn")
+.addEventListener("click",()=>walletActions.requestFund());
+
+document.getElementById("depositBtn")
+.addEventListener("click",()=>{
 window.location.href="coin.html";
 });
 
-document
-.getElementById("withdrawBtn")
-.addEventListener("click", () => walletActions.requestWithdrawal());
+document.getElementById("withdrawBtn")
+.addEventListener("click",()=>walletActions.requestWithdrawal());
 
-document
-.getElementById("logoutBtn")
-.addEventListener("click", () => walletActions.logout());
+document.getElementById("logoutBtn")
+.addEventListener("click",()=>walletActions.logout());
 
-document
-.getElementById("dashboardBtn")
-.addEventListener("click", () => {
+document.getElementById("dashboardBtn")
+.addEventListener("click",()=>{
 window.location.href="dashboard.html";
 });
 
-document
-.getElementById("bankBtn")
-.addEventListener("click", () => {
+document.getElementById("bankBtn")
+.addEventListener("click",()=>{
 window.open("https://t.me/pvpwin_invest","_blank");
 });
 
-document
-.getElementById("updateBankBtn")
-.addEventListener("click", () => {
+document.getElementById("updateBankBtn")
+.addEventListener("click",()=>{
 window.location.href="bank.html";
 });
 
-document
-.getElementById("supportBtn")
-.addEventListener("click", () => {
+document.getElementById("supportBtn")
+.addEventListener("click",()=>{
 window.open("https://t.me/pvpwin_invest","_blank");
 });
-
-}catch(err){
-
-console.error("Wallet load error:",err);
-
-document.getElementById("walletBalance").innerText =
-"Error loading wallet";
-
-}
 
 });
 
