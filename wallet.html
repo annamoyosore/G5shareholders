@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>My Wallet - PVPWIN</title>
+
+<link rel="stylesheet" href="css/style.css?v=3.1">
+
+<style>
+
+body{
+font-family:Arial;
+background:#f0f4f8;
+color:#1f1f1f;
+padding:20px;
+}
+
+h2,h3{
+color:#1e3a8a;
+margin-bottom:16px;
+}
+
+.guidelines{
+background:#e0f2fe;
+padding:12px;
+border-radius:6px;
+margin-bottom:20px;
+}
+
+.balance{
+font-size:24px;
+font-weight:bold;
+margin-bottom:20px;
+}
+
+.warning{
+background:#fbbf24;
+padding:10px;
+border-radius:6px;
+margin-bottom:15px;
+display:none;
+}
+
+button{
+padding:16px 28px;
+margin:8px;
+border:none;
+border-radius:10px;
+font-weight:700;
+font-size:16px;
+cursor:pointer;
+}
+
+#requestFundBtn{background:#16a34a;color:white;}
+#depositBtn{background:#10b981;color:white;}
+#withdrawBtn{background:#f59e0b;color:white;}
+#dashboardBtn{background:#c7b9ff;color:#2b1d5f;}
+#bankBtn{background:#a78bfa;color:white;}
+#updateBankBtn{background:#8b5cf6;color:white;}
+#supportBtn{background:#0088cc;color:white;}
+#logoutBtn{background:#ef4444;color:white;}
+
+.section{
+margin-bottom:30px;
+}
+
+.pending-request{
+background:white;
+border:1px solid #ccc;
+border-radius:6px;
+padding:12px;
+margin-bottom:8px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>Wallet Dashboard</h2>
+
+<div id="withdrawWarning" class="warning">
+Withdrawals are disabled for your account.
+</div>
+
+<div class="guidelines">
+
+<h3>Guidelines</h3>
+
+<ul>
+<li><b>Fund Wallet:</b> Send request for admin approval.</li>
+<li><b>Deposit Crypto:</b> Make crypto deposit.</li>
+<li><b>Withdraw:</b> Minimum withdrawal is $30.</li>
+<li><b>Claim ROI:</b> Claim matured investment profits.</li>
+</ul>
+
+</div>
+
+<div class="balance">
+Wallet Balance:
+<span id="walletBalance">Loading...</span>
+</div>
+
+
+<div class="section">
+
+<button id="requestFundBtn">FUND WALLET</button>
+
+<button id="depositBtn">DEPOSIT VIA CRYPTO</button>
+
+<button id="withdrawBtn">Withdraw (Min $700)</button>
+
+<button id="dashboardBtn">← Back to Dashboard</button>
+
+<button id="bankBtn">Bank Deposit</button>
+
+<button id="updateBankBtn">Update Bank Details</button>
+
+</div>
+
+
+<div class="section">
+
+<h3>Pending Requests</h3>
+
+<div id="pendingRequests">Loading...</div>
+
+</div>
+
+
+<div class="section">
+
+<h3>Matured Investments</h3>
+
+<div id="maturedInvestments"></div>
+
+</div>
+
+
+<div class="section">
+
+<button id="supportBtn">Contact Support</button>
+
+<button id="logoutBtn">Logout</button>
+
+</div>
+
+
+<script type="module">
+
+import { walletActions } from "./js/wallet-actions.js?v=3.1";
+
+window.addEventListener("DOMContentLoaded", async()=>{
+
+await walletActions.initializeWallet();
+
+document
+.getElementById("requestFundBtn")
+.addEventListener("click",walletActions.requestFund);
+
+document
+.getElementById("depositBtn")
+.addEventListener("click",()=>{
+window.location.href="coin.html";
+});
+
+document
+.getElementById("withdrawBtn")
+.addEventListener("click",walletActions.requestWithdrawal);
+
+document
+.getElementById("logoutBtn")
+.addEventListener("click",walletActions.logout);
+
+document
+.getElementById("dashboardBtn")
+.addEventListener("click",()=>{
+window.location.href="dashboard.html";
+});
+
+document
+.getElementById("bankBtn")
+.addEventListener("click",()=>{
+window.open("https://t.me/pvpwin_invest","_blank");
+});
+
+document
+.getElementById("updateBankBtn")
+.addEventListener("click",()=>{
+window.location.href="bank.html";
+});
+
+document
+.getElementById("supportBtn")
+.addEventListener("click",()=>{
+window.open("https://t.me/pvpwin_invest","_blank");
+});
+
+});
+
+</script>
+
+</body>
+</html>
