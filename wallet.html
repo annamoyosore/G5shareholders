@@ -6,28 +6,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Wallet - PVPWIN</title>
-
-<link rel="stylesheet" href="css/style.css">
+<title>Wallet Dashboard</title>
 
 <style>
 
 body{
 font-family:Arial;
-background:#f0f4f8;
-color:#1f1f1f;
+background:#0f172a;
+color:white;
 padding:20px;
 }
 
 h2,h3{
-color:#1e3a8a;
-margin-bottom:16px;
+color:#22c55e;
 }
 
 .guidelines{
-background:#e0f2fe;
-padding:12px;
-border-radius:6px;
+background:#020617;
+padding:15px;
+border-radius:8px;
 margin-bottom:20px;
 }
 
@@ -37,43 +34,34 @@ font-weight:bold;
 margin-bottom:20px;
 }
 
-.warning{
-background:#fbbf24;
-padding:10px;
-border-radius:6px;
-margin-bottom:15px;
-display:none;
-}
-
 button{
-padding:16px 28px;
-margin:8px;
+padding:12px 18px;
+margin:6px;
 border:none;
-border-radius:10px;
-font-weight:700;
-font-size:16px;
+border-radius:6px;
+font-weight:bold;
 cursor:pointer;
 }
 
-#requestFundBtn{background:#16a34a;color:white;}
+#requestFundBtn{background:#22c55e;color:white;}
 #depositBtn{background:#10b981;color:white;}
 #withdrawBtn{background:#f59e0b;color:white;}
 #dashboardBtn{background:#6366f1;color:white;}
-#bankBtn{background:#a855f7;color:white;}
+#bankBtn{background:#8b5cf6;color:white;}
 #updateBankBtn{background:#7c3aed;color:white;}
-#supportBtn{background:#0088cc;color:white;}
+#supportBtn{background:#0284c7;color:white;}
 #logoutBtn{background:#ef4444;color:white;}
 
 .section{
-margin-bottom:30px;
+margin-top:30px;
 }
 
 .pending-request{
-background:white;
-border:1px solid #ccc;
-border-radius:6px;
+background:#020617;
 padding:12px;
-margin-bottom:8px;
+border-radius:6px;
+margin-bottom:10px;
+border:1px solid #1e293b;
 }
 
 </style>
@@ -84,19 +72,15 @@ margin-bottom:8px;
 
 <h2>Wallet Dashboard</h2>
 
-<div id="withdrawWarning" class="warning">
-Withdrawals are disabled for your account.
-</div>
-
 <div class="guidelines">
 
 <h3>Guidelines</h3>
 
 <ul>
-<li><b>Fund Wallet:</b> Send request for admin approval.</li>
-<li><b>Deposit Crypto:</b> Make crypto deposit.</li>
-<li><b>Withdraw:</b> Minimum withdrawal is $700.</li>
-<li><b>Claim ROI:</b> Claim matured investment profits.</li>
+<li>Fund wallet by sending request to admin</li>
+<li>Deposit crypto after funding approval</li>
+<li>Minimum withdrawal $700</li>
+<li>Claim ROI once investment matures</li>
 </ul>
 
 </div>
@@ -106,6 +90,7 @@ Wallet Balance:
 <span id="walletBalance">Loading...</span>
 </div>
 
+
 <div class="section">
 
 <button id="requestFundBtn">FUND WALLET</button>
@@ -114,13 +99,14 @@ Wallet Balance:
 
 <button id="withdrawBtn">Withdraw (Min $700)</button>
 
-<button id="dashboardBtn">← Back to Dashboard</button>
+<button id="dashboardBtn">Back to Dashboard</button>
 
 <button id="bankBtn">Bank Deposit</button>
 
 <button id="updateBankBtn">Update Bank Details</button>
 
 </div>
+
 
 <div class="section">
 
@@ -130,6 +116,7 @@ Wallet Balance:
 
 </div>
 
+
 <div class="section">
 
 <h3>Matured Investments</h3>
@@ -137,6 +124,7 @@ Wallet Balance:
 <div id="maturedInvestments"></div>
 
 </div>
+
 
 <div class="section">
 
@@ -146,71 +134,115 @@ Wallet Balance:
 
 </div>
 
+
 <script type="module">
 
-import { account } from "./js/appwrite.js";
-import { walletActions } from "./js/wallet-actions.js";
+import {
+account,
+databases,
+ID,
+DATABASE_ID,
+COLLECTION_WALLETS
+} from "./js/appwrite.js";
 
-document.addEventListener("DOMContentLoaded", async () => {
+
+async function initializeWallet(){
 
 try{
 
-/* CHECK USER SESSION */
-
 const user = await account.get();
 
-/* INITIALIZE WALLET */
-/* wallet-actions.js will auto-create wallet if missing */
+let walletRes = await databases.listDocuments(
+DATABASE_ID,
+COLLECTION_WALLETS
+);
 
-await walletActions.initializeWallet();
+let wallet = walletRes.documents.find(
+w => w.userId === user.$id
+);
 
-}catch(err){
 
-console.error("User session error:",err);
+/* AUTO CREATE WALLET */
 
-/* Redirect if no session */
+if(!wallet){
 
-window.location.href="login.html";
+wallet = await databases.createDocument(
+DATABASE_ID,
+COLLECTION_WALLETS,
+ID.unique(),
+{
+userId:user.$id,
+balance:0,
+createdAt:new Date().toISOString()
+}
+);
+
+alert("Wallet created successfully for your account.");
 
 }
 
-/* BUTTON EVENTS */
 
-document.getElementById("requestFundBtn")
-.addEventListener("click",()=>walletActions.requestFund());
+/* SHOW BALANCE */
 
-document.getElementById("depositBtn")
-.addEventListener("click",()=>{
+document.getElementById("walletBalance").innerText =
+`$${wallet.balance}`;
+
+
+/* NO PENDING REQUESTS DEFAULT */
+
+document.getElementById("pendingRequests").innerText =
+"No pending requests";
+
+}catch(err){
+
+console.error(err);
+
+alert(
+"Wallet balance failed to load.\n\nPossible reasons:\n\n1. Wallet collection permission blocked\n2. Wallet row not created\n3. Appwrite network error\n4. Database attribute mismatch"
+);
+
+document.getElementById("walletBalance").innerText="Error";
+
+}
+
+}
+
+
+
+/* BUTTON ACTIONS */
+
+document.getElementById("depositBtn").onclick=()=>{
 window.location.href="coin.html";
-});
+};
 
-document.getElementById("withdrawBtn")
-.addEventListener("click",()=>walletActions.requestWithdrawal());
-
-document.getElementById("logoutBtn")
-.addEventListener("click",()=>walletActions.logout());
-
-document.getElementById("dashboardBtn")
-.addEventListener("click",()=>{
+document.getElementById("dashboardBtn").onclick=()=>{
 window.location.href="dashboard.html";
-});
+};
 
-document.getElementById("bankBtn")
-.addEventListener("click",()=>{
+document.getElementById("bankBtn").onclick=()=>{
 window.open("https://t.me/pvpwin_invest","_blank");
-});
+};
 
-document.getElementById("updateBankBtn")
-.addEventListener("click",()=>{
+document.getElementById("updateBankBtn").onclick=()=>{
 window.location.href="bank.html";
-});
+};
 
-document.getElementById("supportBtn")
-.addEventListener("click",()=>{
+document.getElementById("supportBtn").onclick=()=>{
 window.open("https://t.me/pvpwin_invest","_blank");
-});
+};
 
-});
+document.getElementById("logoutBtn").onclick=async()=>{
+
+await account.deleteSession("current");
+
+window.location.href="login.html";
+
+};
+
+
+/* LOAD WALLET */
+
+window.addEventListener("DOMContentLoaded",initializeWallet);
 
 </script>
 
