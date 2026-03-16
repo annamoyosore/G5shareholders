@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PVPWIN Real Estate & Shares Investment</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#0f172a;
+color:white;
+}
+
+/* HEADER */
+
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:20px;
+background:#020617;
+border-bottom:1px solid #1e293b;
+}
+
+.logo{
+font-size:22px;
+font-weight:bold;
+color:#22c55e;
+}
+
+/* WALLET */
+
+.wallet{
+background:#020617;
+margin:20px;
+padding:20px;
+border-radius:10px;
+}
+
+.wallet h2{
+margin:0;
+color:#22c55e;
+}
+
+/* BUTTONS */
+
+.actions button{
+margin:5px;
+padding:8px 14px;
+border:none;
+border-radius:6px;
+background:#22c55e;
+color:white;
+cursor:pointer;
+}
+
+/* FEEDS */
+
+.feed-box{
+background:#020617;
+margin:20px;
+padding:15px;
+border-radius:10px;
+border:1px solid #1e293b;
+}
+
+.feed-item{
+padding:8px;
+font-size:14px;
+border-bottom:1px solid #1e293b;
+color:#94a3b8;
+}
+
+.feed-item span{
+color:#22c55e;
+font-weight:bold;
+}
+
+/* LEADERBOARD */
+
+.leaderboard{
+background:#020617;
+margin:20px;
+padding:15px;
+border-radius:10px;
+border:1px solid #1e293b;
+}
+
+.leaderboard-item{
+display:flex;
+justify-content:space-between;
+padding:8px;
+border-bottom:1px solid #1e293b;
+}
+
+/* PLANS */
+
+.section-title{
+margin-left:20px;
+margin-top:40px;
+font-size:20px;
+}
+
+.plans{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+gap:20px;
+padding:20px;
+}
+
+.plan-card{
+background:#020617;
+border-radius:12px;
+overflow:hidden;
+border:1px solid #1e293b;
+transition:0.3s;
+}
+
+.plan-card:hover{
+transform:translateY(-5px);
+}
+
+.plan-card img{
+width:100%;
+height:140px;
+object-fit:cover;
+}
+
+.plan-content{
+padding:15px;
+}
+
+.roi{
+color:#22c55e;
+font-weight:bold;
+}
+
+.plan-content button{
+margin-top:10px;
+width:100%;
+padding:10px;
+border:none;
+background:#22c55e;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* INVESTMENTS */
+
+#my-investments{
+padding:20px;
+}
+
+.user-investment{
+background:#020617;
+padding:15px;
+margin-bottom:10px;
+border-radius:8px;
+border:1px solid #1e293b;
+}
+
+.claim-btn{
+margin-top:10px;
+background:#22c55e;
+border:none;
+padding:8px 12px;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="logo">
+PVPWIN INVESTMENT
+</div>
+
+<div>
+<span id="userName"></span>
+</div>
+
+</div>
+
+
+<!-- WALLET -->
+
+<div class="wallet">
+
+<h2 id="balance">$0</h2>
+
+<p>User ID: <span id="userID"></span></p>
+
+<div class="actions">
+
+<button onclick="window.location.href='wallet.html'">
+Wallet
+</button>
+
+<button onclick="window.location.href='transactions.html'">
+Transactions
+</button>
+
+<button id="logoutBtn">
+Logout
+</button>
+
+</div>
+
+</div>
+
+
+<!-- INVESTMENT FEED -->
+
+<div class="feed-box">
+
+<h3>Recent Investments</h3>
+
+<div id="investment-feed"></div>
+
+</div>
+
+
+<!-- WITHDRAWAL FEED -->
+
+<div class="feed-box">
+
+<h3>Recent Withdrawals</h3>
+
+<div id="withdrawal-feed"></div>
+
+</div>
+
+
+<!-- LEADERBOARD -->
+
+<div class="leaderboard">
+
+<h3>Top Investors</h3>
+
+<div id="leaderboard-list"></div>
+
+</div>
+
+
+<!-- PLANS -->
+
+<h2 class="section-title">
+Investment Plans
+</h2>
+
+<div id="plans-container" class="plans"></div>
+
+
+<h2 class="section-title">
+My Investments
+</h2>
+
+<div id="my-investments"></div>
+
+
+<script type="module">
+
+import { account, databases } from "./js/appwrite.js";
+import { invest, loadUserInvestments, logout } from "./js/invest.js";
+
+const DATABASE_ID="6970a8c6002fb4a0ded8";
+const COLLECTION_WALLETS="wallet";
+
+/* LOGIN PROTECTION */
+
+async function checkAuth(){
+
+try{
+
+const user=await account.get();
+
+window.currentUser=user;
+
+document.getElementById("userName").innerText=user.name;
+document.getElementById("userID").innerText=user.$id;
+
+}catch(err){
+
+window.location.href="login.html";
+
+}
+
+}
+
+
+/* PLAN ACCESS CONTROL */
+
+const PLAN_ACCESS={
+
+"DANGOTE TRUCKS":{
+allowedUsers:["adminUserId"]
+},
+
+"RAW-GOLD":{
+allowedUsers:["VIPUser"]
+}
+
+};
+
+
+/* INVESTMENT PLANS */
+
+const PLANS=[
+
+{ name:"STARTER MICRO PLAN", amount:200, roi:90, duration:3, img:"images/starter.jpg" },
+
+{ name:"PREMIUM FAST PLAN", amount:700, roi:70, duration:5, img:"images/premium.jpg" },
+
+{ name:"ANDERSON SOUTH CAROLINA", amount:5000, roi:20, duration:7, img:"images/agriculture.jpg" },
+
+{ name:"Michigan USA", amount:10000, roi:30, duration:10, img:"images/crypto.jpg" },
+
+{ name:"GOLD", amount:25000, roi:40, duration:15, img:"images/gold.jpg" },
+
+{ name:"LEKKI LAGOS", amount:50000, roi:50, duration:20, img:"images/realestate.jpg" },
+
+{ name:"SOUTH AFRICA PLATINUM", amount:100000, roi:70, duration:30, img:"images/Southafrica.jpg" },
+
+{ name:"DANGOTE TRUCKS", amount:60000, roi:100, duration:45, img:"images/stocks.jpg" },
+
+{ name:"AA RANO TRUCKS-SHARES", amount:75000, roi:55, duration:25, img:"images/aarano.jpg" },
+
+{ name:"ADRON HOMES", amount:90000, roi:60, duration:28, img:"images/adron.jpg" },
+
+{ name:"ZENITH BANK SHARES FUND", amount:120000, roi:80, duration:35, img:"images/zenith.jpg" },
+
+{ name:"RAW-GOLD", amount:150000, roi:90, duration:40, img:"images/rawgold.jpg" }
+
+];
+
+
+function formatUSD(n){
+return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
+}
