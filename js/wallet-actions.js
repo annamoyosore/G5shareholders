@@ -234,10 +234,10 @@ async requestWithdrawal(){
 try{
 
 const amount =
-Number(prompt("Enter withdrawal amount (Min ₦12,000)"));
+Number(prompt("Enter withdrawal amount (Min $700)"));
 
-if(!amount || amount<12000)
-throw new Error("Minimum withdraw ₦12,000");
+if(!amount || amount<700)
+throw new Error("Minimum withdraw $700");
 
 const user = await account.get();
 
