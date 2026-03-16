@@ -10,19 +10,55 @@ COLLECTION_SYSTEM
 
 
 /* =========================
+   CHECK ACTIVE SESSION
+========================= */
+
+async function checkActiveSession(){
+
+try{
+
+await account.get();
+
+if(
+window.location.pathname.includes("login") ||
+window.location.pathname.includes("register")
+){
+
+window.location.href="dashboard.html";
+
+}
+
+}catch{
+/* no session */
+}
+
+}
+
+checkActiveSession();
+
+
+
+/* =========================
    CLEAR EXISTING SESSION
 ========================= */
 
-async function clearSession() {
+async function clearSession(){
 
-try {
+try{
 
-await account.deleteSession('current');
-console.log('Old session cleared');
+/* CHECK IF SESSION EXISTS */
 
-} catch {
+await account.get();
 
-console.log('No existing session');
+/* DELETE SESSION */
+
+await account.deleteSession("current");
+
+console.log("Previous session cleared");
+
+}catch{
+
+console.log("No existing session");
 
 }
 
@@ -136,7 +172,7 @@ name
 await account.createEmailSession(email,password);
 
 
-/* CREATE USER WALLET */
+/* CREATE WALLET */
 
 await databases.createDocument(
 DATABASE_ID,
@@ -201,7 +237,6 @@ console.error(error);
 if(msgEl)
 msgEl.textContent = error.message || "Registration failed";
 
-
 }finally{
 
 btn.disabled=false;
@@ -256,7 +291,6 @@ try{
 await account.createEmailSession(email,password);
 
 window.location.href='dashboard.html';
-
 
 }catch(error){
 
