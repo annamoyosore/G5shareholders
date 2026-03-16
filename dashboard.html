@@ -138,6 +138,7 @@ G5 SHARES
 
 </div>
 
+
 <!-- WALLET -->
 
 <div class="wallet">
@@ -164,19 +165,33 @@ Logout
 
 </div>
 
+
 <h2 class="section-title">Investment Plans</h2>
 
 <div id="plans-container" class="plans"></div>
+
 
 <h2 class="section-title">My Investments</h2>
 
 <div id="my-investments"></div>
 
 
+
 <script type="module">
 
-import { account } from "./js/appwrite.js";
-import { invest, loadUserInvestments, logout } from "./js/invest.js";
+import {
+account,
+databases,
+DATABASE_ID,
+COLLECTION_WALLETS
+} from "./js/appwrite.js";
+
+import {
+invest,
+loadUserInvestments,
+logout
+} from "./js/invest.js";
+
 
 const PLANS=[
 
@@ -212,7 +227,8 @@ return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n
 }
 
 
-/* LOAD USER */
+
+/* LOAD USER + WALLET */
 
 async function loadUser(){
 
@@ -223,13 +239,37 @@ const user = await account.get();
 document.getElementById("userName").innerText=user.name;
 document.getElementById("userID").innerText=user.$id;
 
-}catch{
+
+/* LOAD WALLET BALANCE */
+
+const walletRes = await databases.listDocuments(
+DATABASE_ID,
+COLLECTION_WALLETS
+);
+
+const wallet = walletRes.documents.find(
+w => w.userId === user.$id
+);
+
+if(wallet){
+
+document.getElementById("balance").innerText =
+formatUSD(wallet.balance);
+
+}else{
+
+document.getElementById("balance").innerText="$0";
+
+}
+
+}catch(err){
 
 window.location.href="login.html";
 
 }
 
 }
+
 
 
 /* LOAD PLANS */
@@ -270,6 +310,7 @@ container.appendChild(card);
 });
 
 }
+
 
 
 loadUser();
