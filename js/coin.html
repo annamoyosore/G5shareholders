@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Crypto Deposit - G5SHARES HOLDERS</title>
+
+<link rel="stylesheet" href="css/style.css?v=3.0">
+
+<style>
+
+body{
+font-family:Arial,sans-serif;
+background:#f0f4f8;
+padding:20px;
+color:#1f1f1f;
+}
+
+h2{
+color:#1e3a8a;
+margin-bottom:16px;
+}
+
+.crypto-form{
+background:#fff;
+padding:20px;
+border-radius:8px;
+max-width:500px;
+margin-bottom:20px;
+}
+
+.crypto-form label{
+display:block;
+margin-top:12px;
+font-weight:bold;
+}
+
+.crypto-form input,
+.crypto-form select{
+width:calc(100% - 90px);
+padding:10px;
+margin-top:6px;
+border-radius:6px;
+border:1px solid #ccc;
+font-size:16px;
+display:inline-block;
+}
+
+.copy-btn{
+width:70px;
+padding:10px;
+display:inline-block;
+margin-left:6px;
+border-radius:6px;
+border:none;
+background:#2563eb;
+color:#fff;
+cursor:pointer;
+font-weight:bold;
+}
+
+.submit-btn{
+margin-top:20px;
+padding:14px;
+background:#10b981;
+color:#fff;
+border:none;
+border-radius:8px;
+font-weight:bold;
+cursor:pointer;
+width:100%;
+}
+
+.success-msg{
+background:#10b981;
+color:white;
+padding:10px;
+margin-top:12px;
+border-radius:6px;
+display:none;
+}
+
+.error-msg{
+background:#ef4444;
+color:white;
+padding:10px;
+margin-top:12px;
+border-radius:6px;
+display:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>Deposit via Cryptocurrency</h2>
+
+<p>
+Select the coin, copy the wallet address, send crypto,
+then submit your deposit request for admin approval.
+</p>
+
+
+<div class="crypto-form">
+
+<label>Select Cryptocurrency</label>
+
+<select id="cryptoType">
+
+<option value="bnb">BNB</option>
+<option value="eth">Ethereum (ETH)</option>
+<option value="btc">Bitcoin (BTC)</option>
+<option value="usdt">USDT</option>
+<option value="sol">Solana (SOL)</option>
+
+</select>
+
+
+<label>Recipient Address</label>
+
+<input
+type="text"
+id="recipientAddress"
+readonly
+placeholder="Wallet address will appear here"
+>
+
+<button class="copy-btn" id="copyAddressBtn">
+Copy
+</button>
+
+
+<label>Amount (USD)</label>
+
+<input
+type="number"
+id="cryptoAmount"
+placeholder="Enter deposit amount"
+>
+
+
+<button class="submit-btn" id="submitCryptoDeposit">
+Submit Deposit Request
+</button>
+
+
+<div class="success-msg" id="successMsg">
+Deposit request submitted!
+</div>
+
+<div class="error-msg" id="errorMsg">
+Deposit failed
+</div>
+
+</div>
+
+
+<button
+onclick="window.location.href='wallet.html'"
+style="margin-top:20px;padding:12px 24px;border:none;border-radius:6px;background:#c7b9ff;color:#2b1d5f;cursor:pointer;"
+>
+← Back to Wallet
+</button>
+
+
+<script type="module" src="js/coin.js"></script>
+
+</body>
+</html>
