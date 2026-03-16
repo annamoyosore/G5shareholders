@@ -10,7 +10,7 @@ COLLECTION_SYSTEM
 
 
 /* =========================
-   CHECK ACTIVE SESSION
+CHECK ACTIVE SESSION
 ========================= */
 
 async function checkActiveSession(){
@@ -23,13 +23,11 @@ if(
 window.location.pathname.includes("login") ||
 window.location.pathname.includes("register")
 ){
-
 window.location.href="dashboard.html";
-
 }
 
 }catch{
-/* no active session */
+/* no session */
 }
 
 }
@@ -39,7 +37,7 @@ checkActiveSession();
 
 
 /* =========================
-   CLEAR ALL EXISTING SESSIONS
+CLEAR SESSIONS
 ========================= */
 
 async function clearSession(){
@@ -49,17 +47,11 @@ try{
 const sessions = await account.listSessions();
 
 for(const session of sessions.sessions){
-
 await account.deleteSession(session.$id);
-
 }
 
-console.log("All previous sessions cleared");
-
 }catch(err){
-
 console.log("No active sessions");
-
 }
 
 }
@@ -67,7 +59,7 @@ console.log("No active sessions");
 
 
 /* =========================
-   CHECK MAINTENANCE MODE
+CHECK MAINTENANCE MODE
 ========================= */
 
 async function checkMaintenance(){
@@ -85,7 +77,7 @@ const maintenance = system.documents[0].maintenance;
 
 if(maintenance){
 
-document.body.innerHTML = `
+document.body.innerHTML=`
 <h2 style="text-align:center;margin-top:120px">
 Platform Under Maintenance<br><br>
 Please check back later.
@@ -111,7 +103,7 @@ return false;
 
 
 /* =========================
-   REGISTER
+REGISTER
 ========================= */
 
 async function register(){
@@ -127,37 +119,24 @@ const btn = document.getElementById('registerBtn');
 const msgEl = document.getElementById('formMessage');
 
 msgEl.textContent='';
-msgEl.classList.remove('success');
 
 if(!name || !email || !password){
-
 alert('Name, email, and password are required');
 return;
-
 }
 
 if(password !== confirmPassword){
-
 msgEl.textContent="Passwords do not match!";
 return;
-
 }
 
 btn.disabled=true;
 
-if(btn.querySelector('.btn-text'))
-btn.querySelector('.btn-text').innerText='Creating...';
-
-if(btn.querySelector('.spinner'))
-btn.querySelector('.spinner').classList.remove('hidden');
-
-
 await clearSession();
-
 
 try{
 
-/* CREATE USER */
+/* CREATE ACCOUNT */
 
 const user = await account.create(
 ID.unique(),
@@ -172,7 +151,11 @@ name
 await account.createEmailSession(email,password);
 
 
-/* CREATE WALLET */
+/* =========================
+CREATE WALLET
+========================= */
+
+try{
 
 await databases.createDocument(
 DATABASE_ID,
@@ -182,18 +165,22 @@ ID.unique(),
 userId:user.$id,
 userName:name,
 balance:0,
-withdrawFrozen:false,
 createdAt:new Date().toISOString()
 }
 );
 
+}catch(walletErr){
+
+console.error("Wallet creation failed:",walletErr);
+
+}
+
 
 /* =========================
-   REFERRAL SYSTEM
+REFERRAL SYSTEM
 ========================= */
 
 const urlParams = new URLSearchParams(window.location.search);
-
 const referralId = urlParams.get('ref');
 
 if(referralId){
@@ -214,21 +201,16 @@ createdAt:new Date().toISOString()
 }
 
 
-/* SUCCESS MESSAGE */
+/* SUCCESS */
 
 if(msgEl){
-
 msgEl.textContent="Registration successful! Redirecting...";
 msgEl.classList.add('success');
-
 }
 
 setTimeout(()=>{
-
 window.location.href='dashboard.html';
-
-},2500);
-
+},2000);
 
 }catch(error){
 
@@ -237,24 +219,16 @@ console.error(error);
 if(msgEl)
 msgEl.textContent = error.message || "Registration failed";
 
-}finally{
+}
 
 btn.disabled=false;
-
-if(btn.querySelector('.btn-text'))
-btn.querySelector('.btn-text').innerText='Register';
-
-if(btn.querySelector('.spinner'))
-btn.querySelector('.spinner').classList.add('hidden');
-
-}
 
 }
 
 
 
 /* =========================
-   LOGIN
+LOGIN
 ========================= */
 
 async function login(){
@@ -265,26 +239,15 @@ const email = document.getElementById('email').value.trim();
 const password = document.getElementById('password').value;
 
 const btn = document.getElementById('loginBtn');
-const msgEl = document.getElementById('formMessage');
 
 if(!email || !password){
-
 alert('Email and password required');
 return;
-
 }
 
 btn.disabled=true;
 
-if(btn.querySelector('.btn-text'))
-btn.querySelector('.btn-text').innerText='Logging in...';
-
-if(btn.querySelector('.spinner'))
-btn.querySelector('.spinner').classList.remove('hidden');
-
-
 await clearSession();
-
 
 try{
 
@@ -297,49 +260,29 @@ window.location.href='dashboard.html';
 console.error(error);
 
 if(error.code === 401){
-
 alert('Invalid email or password');
-
 }
-
 else if(error.code === 404){
-
-alert('Email not registered. Please sign up first.');
-
+alert('Email not registered');
 }
-
 else{
-
 alert(error.message || 'Login failed');
-
 }
 
-if(msgEl) msgEl.textContent='';
-
-}finally{
+}
 
 btn.disabled=false;
-
-if(btn.querySelector('.btn-text'))
-btn.querySelector('.btn-text').innerText='Login';
-
-if(btn.querySelector('.spinner'))
-btn.querySelector('.spinner').classList.add('hidden');
-
-}
 
 }
 
 
 
 /* =========================
-   AUTO LOGOUT AFTER INACTIVITY
+AUTO LOGOUT
 ========================= */
 
 let logoutTimer;
-
 const INACTIVITY_LIMIT = 30 * 60 * 1000;
-
 
 function resetLogoutTimer(){
 
@@ -351,23 +294,18 @@ try{
 
 await account.deleteSession('current');
 
-alert('You were logged out due to inactivity.');
+alert('Logged out due to inactivity');
 
 window.location.href='login.html';
 
 }catch(err){
-
-console.error('Auto logout error:',err);
-
+console.error(err);
 }
 
 },INACTIVITY_LIMIT);
 
 }
 
-
-
-/* USER ACTIVITY EVENTS */
 
 [
 'mousemove',
@@ -376,18 +314,15 @@ console.error('Auto logout error:',err);
 'scroll',
 'touchstart'
 ].forEach(evt=>{
-
 window.addEventListener(evt,resetLogoutTimer);
-
 });
-
 
 window.addEventListener('DOMContentLoaded',resetLogoutTimer);
 
 
 
 /* =========================
-   EXPORT FUNCTIONS
+EXPORT
 ========================= */
 
 window.register = register;
