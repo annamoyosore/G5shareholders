@@ -29,7 +29,7 @@ window.location.href="dashboard.html";
 }
 
 }catch{
-/* no session */
+/* no active session */
 }
 
 }
@@ -39,26 +39,26 @@ checkActiveSession();
 
 
 /* =========================
-   CLEAR EXISTING SESSION
+   CLEAR ALL EXISTING SESSIONS
 ========================= */
 
 async function clearSession(){
 
 try{
 
-/* CHECK IF SESSION EXISTS */
+const sessions = await account.listSessions();
 
-await account.get();
+for(const session of sessions.sessions){
 
-/* DELETE SESSION */
+await account.deleteSession(session.$id);
 
-await account.deleteSession("current");
+}
 
-console.log("Previous session cleared");
+console.log("All previous sessions cleared");
 
-}catch{
+}catch(err){
 
-console.log("No existing session");
+console.log("No active sessions");
 
 }
 
@@ -338,7 +338,7 @@ btn.querySelector('.spinner').classList.add('hidden');
 
 let logoutTimer;
 
-const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
+const INACTIVITY_LIMIT = 30 * 60 * 1000;
 
 
 function resetLogoutTimer(){
@@ -367,7 +367,7 @@ console.error('Auto logout error:',err);
 
 
 
-/* ACTIVITY EVENTS */
+/* USER ACTIVITY EVENTS */
 
 [
 'mousemove',
