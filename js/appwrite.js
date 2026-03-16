@@ -37,7 +37,7 @@ export const COLLECTION_WALLETS      = "wallets";
 export const COLLECTION_INVESTMENTS  = "investment";
 export const COLLECTION_BANK         = "bank_details";
 
-export const COLLECTION_FUNDS        = "funds";
+export const COLLECTION_FUNDS        = "fundrequest";
 export const COLLECTION_WITHDRAWALS  = "withdraw_request";
 
 export const COLLECTION_REFERRALS    = "referrals";
