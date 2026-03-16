@@ -155,51 +155,66 @@ Wallet Balance:
 
 import { walletActions } from "./js/wallet-actions.js?v=3.1";
 
-window.addEventListener("DOMContentLoaded", async()=>{
+document.addEventListener("DOMContentLoaded", async () => {
+
+try{
+
+/* INITIALIZE WALLET */
 
 await walletActions.initializeWallet();
 
+/* BUTTON ACTIONS */
+
 document
 .getElementById("requestFundBtn")
-.addEventListener("click",walletActions.requestFund);
+.addEventListener("click", () => walletActions.requestFund());
 
 document
 .getElementById("depositBtn")
-.addEventListener("click",()=>{
+.addEventListener("click", () => {
 window.location.href="coin.html";
 });
 
 document
 .getElementById("withdrawBtn")
-.addEventListener("click",walletActions.requestWithdrawal);
+.addEventListener("click", () => walletActions.requestWithdrawal());
 
 document
 .getElementById("logoutBtn")
-.addEventListener("click",walletActions.logout);
+.addEventListener("click", () => walletActions.logout());
 
 document
 .getElementById("dashboardBtn")
-.addEventListener("click",()=>{
+.addEventListener("click", () => {
 window.location.href="dashboard.html";
 });
 
 document
 .getElementById("bankBtn")
-.addEventListener("click",()=>{
+.addEventListener("click", () => {
 window.open("https://t.me/pvpwin_invest","_blank");
 });
 
 document
 .getElementById("updateBankBtn")
-.addEventListener("click",()=>{
+.addEventListener("click", () => {
 window.location.href="bank.html";
 });
 
 document
 .getElementById("supportBtn")
-.addEventListener("click",()=>{
+.addEventListener("click", () => {
 window.open("https://t.me/pvpwin_invest","_blank");
 });
+
+}catch(err){
+
+console.error("Wallet load error:",err);
+
+document.getElementById("walletBalance").innerText =
+"Error loading wallet";
+
+}
 
 });
 
