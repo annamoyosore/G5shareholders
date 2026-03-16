@@ -25,24 +25,28 @@ async initializeWallet(){
 
 try{
 
-this.user=await account.get();
+/* GET CURRENT USER */
 
-/* CHECK SYSTEM MAINTENANCE */
+this.user = await account.get();
+
+/* =========================
+CHECK SYSTEM MAINTENANCE
+========================= */
 
 try{
 
-const systemRes=await databases.listDocuments(
+const systemRes = await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_SYSTEM
 );
 
 if(systemRes.documents.length){
 
-const sys=systemRes.documents[0];
+const sys = systemRes.documents[0];
 
-if(sys.maintenance===true){
+if(sys.maintenance === true){
 
-document.body.innerHTML=
+document.body.innerHTML =
 "<h2 style='text-align:center;margin-top:120px'>Platform Under Maintenance</h2>";
 
 return;
@@ -51,26 +55,33 @@ return;
 
 }
 
-}catch(e){}
+}catch(e){
 
-/* LOAD USER WALLET */
+console.log("Maintenance check skipped");
 
-let walletRes=
+}
+
+/* =========================
+LOAD OR CREATE WALLET
+========================= */
+
+let walletRes =
 await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_WALLETS,
 [
-Query.equal("userId",this.user.$id)
+Query.equal("userId",this.user.$id),
+Query.limit(1)
 ]
 );
 
 if(walletRes.documents.length){
 
-this.wallet=walletRes.documents[0];
+this.wallet = walletRes.documents[0];
 
 }else{
 
-this.wallet=
+this.wallet =
 await databases.createDocument(
 DATABASE_ID,
 COLLECTION_WALLETS,
@@ -86,12 +97,22 @@ createdAt:new Date().toISOString()
 
 }
 
-/* DISPLAY BALANCE */
+/* =========================
+DISPLAY WALLET BALANCE
+========================= */
 
-document.getElementById("walletBalance")
-.innerText=`$${this.wallet.balance}`;
+const balanceEl = document.getElementById("walletBalance");
 
-/* WITHDRAW FREEZE */
+if(balanceEl){
+
+balanceEl.innerText =
+`$${Number(this.wallet.balance).toLocaleString()}`;
+
+}
+
+/* =========================
+WITHDRAW FREEZE WARNING
+========================= */
 
 if(this.wallet.withdrawFrozen){
 
@@ -105,15 +126,24 @@ if(withdrawBtn) withdrawBtn.disabled=true;
 
 }
 
-/* LOAD DATA */
+/* =========================
+LOAD DATA
+========================= */
 
 await this.reloadPendingRequests();
 await this.loadMaturedInvestments();
 
 }catch(err){
 
-console.error(err);
+console.error("Wallet initialization error:",err);
+
+/* ONLY REDIRECT IF SESSION EXPIRED */
+
+if(err.code === 401 || err.message?.includes("missing scope")){
+
 window.location.href="login.html";
+
+}
 
 }
 
@@ -127,7 +157,7 @@ async requestFund(){
 
 try{
 
-const amount=Number(prompt("Enter amount to deposit"));
+const amount = Number(prompt("Enter amount to deposit"));
 
 if(!amount || amount<=0)
 throw new Error("Invalid amount");
@@ -167,7 +197,7 @@ async requestWithdrawal(){
 
 try{
 
-const amount=
+const amount =
 Number(prompt("Enter withdrawal amount (Min $700)"));
 
 if(!amount || amount<700)
@@ -176,7 +206,7 @@ throw new Error("Minimum withdrawal is $700");
 if(this.wallet.withdrawFrozen)
 throw new Error("Withdrawals disabled for your account");
 
-if(amount>this.wallet.balance)
+if(amount > this.wallet.balance)
 throw new Error("Insufficient wallet balance");
 
 await databases.createDocument(
@@ -211,7 +241,7 @@ LOAD PENDING REQUESTS
 
 async reloadPendingRequests(){
 
-const container=
+const container =
 document.getElementById("pendingRequests");
 
 if(!container) return;
@@ -220,7 +250,7 @@ container.innerHTML="Loading...";
 
 try{
 
-const fundRes=
+const fundRes =
 await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_FUNDS,
@@ -230,7 +260,7 @@ Query.equal("status","pending")
 ]
 );
 
-const withdrawRes=
+const withdrawRes =
 await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_WITHDRAWALS,
@@ -286,7 +316,7 @@ LOAD MATURED INVESTMENTS
 
 async loadMaturedInvestments(){
 
-const container=
+const container =
 document.getElementById("maturedInvestments");
 
 if(!container) return;
@@ -295,7 +325,7 @@ container.innerHTML="";
 
 try{
 
-const res=
+const res =
 await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_INVESTMENTS,
@@ -310,13 +340,13 @@ const now=Date.now();
 
 investments.forEach(inv=>{
 
-const target=
-new Date(inv.createdAt).getTime()+
+const target =
+new Date(inv.createdAt).getTime() +
 (inv.duration*86400000);
 
 if(inv.status==="active" && now>=target){
 
-const expected=
+const expected =
 Math.round(inv.amount*(1+inv.roi/100));
 
 const div=document.createElement("div");
@@ -365,8 +395,14 @@ status:"completed"
 
 this.wallet.balance+=expected;
 
-document.getElementById("walletBalance")
-.innerText=`$${this.wallet.balance}`;
+const bal=document.getElementById("walletBalance");
+
+if(bal){
+
+bal.innerText=
+`$${Number(this.wallet.balance).toLocaleString()}`;
+
+}
 
 btn.outerHTML=
 `<span class="completed">ROI Claimed</span>`;
@@ -395,7 +431,15 @@ LOGOUT
 
 async logout(){
 
+try{
+
 await account.deleteSession("current");
+
+}catch(e){
+
+console.log("Session already cleared");
+
+}
 
 window.location.href="login.html";
 
