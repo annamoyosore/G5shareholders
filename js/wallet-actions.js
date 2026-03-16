@@ -1,85 +1,41 @@
 import {
-account,
-databases,
-ID,
-Query,
-DATABASE_ID,
-COLLECTION_FUNDS,
-COLLECTION_WITHDRAWALS,
-COLLECTION_WALLETS,
-COLLECTION_INVESTMENTS,
-COLLECTION_EARNINGS,
-COLLECTION_SYSTEM
-} from "./appwrite.js";
+  account,
+  databases,
+  ID,
+  DATABASE_ID,
+  COLLECTION_FUNDS,
+  COLLECTION_WITHDRAWALS,
+  COLLECTION_WALLETS,
+  COLLECTION_INVESTMENTS,
+  COLLECTION_EARNINGS
+} from './appwrite.js';
 
-export const walletActions={
+export const walletActions = {
 
-user:null,
-wallet:null,
+  user:null,
+  wallet:null,
 
-/* =========================
-INITIALIZE WALLET
-========================= */
+/* ================= INITIALIZE WALLET ================= */
 
 async initializeWallet(){
 
 try{
 
-/* GET CURRENT USER */
-
 this.user = await account.get();
 
-/* =========================
-CHECK SYSTEM MAINTENANCE
-========================= */
+/* LOAD WALLET */
 
-try{
-
-const systemRes = await databases.listDocuments(
+let walletRes = await databases.listDocuments(
 DATABASE_ID,
-COLLECTION_SYSTEM
+COLLECTION_WALLETS
 );
 
-if(systemRes.documents.length){
+this.wallet =
+walletRes.documents.find(w=>w.userId===this.user.$id);
 
-const sys = systemRes.documents[0];
+/* AUTO CREATE WALLET */
 
-if(sys.maintenance === true){
-
-document.body.innerHTML =
-"<h2 style='text-align:center;margin-top:120px'>Platform Under Maintenance</h2>";
-
-return;
-
-}
-
-}
-
-}catch(e){
-
-console.log("Maintenance check skipped");
-
-}
-
-/* =========================
-LOAD OR CREATE WALLET
-========================= */
-
-let walletRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WALLETS,
-[
-Query.equal("userId",this.user.$id),
-Query.limit(1)
-]
-);
-
-if(walletRes.documents.length){
-
-this.wallet = walletRes.documents[0];
-
-}else{
+if(!this.wallet){
 
 this.wallet =
 await databases.createDocument(
@@ -88,47 +44,26 @@ COLLECTION_WALLETS,
 ID.unique(),
 {
 userId:this.user.$id,
-userName:this.user.name,
 balance:0,
-withdrawFrozen:false,
 createdAt:new Date().toISOString()
 }
 );
 
 }
 
-/* =========================
-DISPLAY WALLET BALANCE
-========================= */
+/* SHOW BALANCE */
 
-const balanceEl = document.getElementById("walletBalance");
+const balanceEl =
+document.getElementById("walletBalance");
 
 if(balanceEl){
 
 balanceEl.innerText =
-`$${Number(this.wallet.balance).toLocaleString()}`;
+`₦${Number(this.wallet.balance).toLocaleString()}`;
 
 }
 
-/* =========================
-WITHDRAW FREEZE WARNING
-========================= */
-
-if(this.wallet.withdrawFrozen){
-
-const warn=document.getElementById("withdrawWarning");
-
-if(warn) warn.style.display="block";
-
-const withdrawBtn=document.getElementById("withdrawBtn");
-
-if(withdrawBtn) withdrawBtn.disabled=true;
-
-}
-
-/* =========================
-LOAD DATA
-========================= */
+/* LOAD DATA */
 
 await this.reloadPendingRequests();
 await this.loadMaturedInvestments();
@@ -137,11 +72,14 @@ await this.loadMaturedInvestments();
 
 console.error("Wallet initialization error:",err);
 
-/* ONLY REDIRECT IF SESSION EXPIRED */
+/* DO NOT LOGOUT USER */
 
-if(err.code === 401 || err.message?.includes("missing scope")){
+const balanceEl =
+document.getElementById("walletBalance");
 
-window.location.href="login.html";
+if(balanceEl){
+
+balanceEl.innerText="Error loading wallet";
 
 }
 
@@ -149,34 +87,134 @@ window.location.href="login.html";
 
 },
 
-/* =========================
-REQUEST FUND
-========================= */
+/* ================= LOAD PENDING REQUESTS ================= */
+
+async reloadPendingRequests(){
+
+try{
+
+const user = await account.get();
+
+const pendingDiv =
+document.getElementById("pendingRequests");
+
+if(!pendingDiv) return;
+
+pendingDiv.innerHTML="";
+
+const fundRes =
+await databases.listDocuments(
+DATABASE_ID,
+COLLECTION_FUNDS
+);
+
+const withdrawRes =
+await databases.listDocuments(
+DATABASE_ID,
+COLLECTION_WITHDRAWALS
+);
+
+const pending=[
+
+...fundRes.documents
+.filter(r=>r.userId===user.$id && r.status==="pending")
+.map(r=>({...r,type:"Fund"})),
+
+...withdrawRes.documents
+.filter(r=>r.userId===user.$id && r.status==="pending")
+.map(r=>({...r,type:"Withdrawal"}))
+
+];
+
+if(!pending.length){
+
+pendingDiv.innerText="No pending requests";
+return;
+
+}
+
+pending.forEach(r=>{
+
+const div=document.createElement("div");
+
+div.className="pending-request";
+
+div.innerHTML=`
+<span>${r.type} Request: ₦${r.amount}</span>
+<button>Cancel</button>
+`;
+
+const btn = div.querySelector("button");
+
+btn.onclick = async()=>{
+
+try{
+
+btn.disabled=true;
+btn.innerText="Cancelling...";
+
+await databases.deleteDocument(
+DATABASE_ID,
+r.type==="Fund"
+? COLLECTION_FUNDS
+: COLLECTION_WITHDRAWALS,
+r.$id
+);
+
+await this.reloadPendingRequests();
+
+}catch(err){
+
+console.error(err);
+
+btn.disabled=false;
+btn.innerText="Cancel";
+
+alert("Failed to cancel request");
+
+}
+
+};
+
+pendingDiv.appendChild(div);
+
+});
+
+}catch(err){
+
+console.error("Error loading pending requests:",err);
+
+}
+
+},
+
+/* ================= REQUEST FUND ================= */
 
 async requestFund(){
 
 try{
 
-const amount = Number(prompt("Enter amount to deposit"));
+const amount =
+Number(prompt("Enter amount to request"));
 
 if(!amount || amount<=0)
 throw new Error("Invalid amount");
+
+const user = await account.get();
 
 await databases.createDocument(
 DATABASE_ID,
 COLLECTION_FUNDS,
 ID.unique(),
 {
-userId:this.user.$id,
-userName:this.user.name,
+userId:user.$id,
 amount,
 status:"pending",
-type:"crypto",
 createdAt:new Date().toISOString()
 }
 );
 
-alert("Deposit request sent to admin");
+alert("Fund request sent");
 
 await this.reloadPendingRequests();
 
@@ -189,33 +227,42 @@ alert(err.message);
 
 },
 
-/* =========================
-REQUEST WITHDRAWAL
-========================= */
+/* ================= REQUEST WITHDRAW ================= */
 
 async requestWithdrawal(){
 
 try{
 
 const amount =
-Number(prompt("Enter withdrawal amount (Min $700)"));
+Number(prompt("Enter withdrawal amount (Min ₦12,000)"));
 
-if(!amount || amount<700)
-throw new Error("Minimum withdrawal is $700");
+if(!amount || amount<12000)
+throw new Error("Minimum withdraw ₦12,000");
 
-if(this.wallet.withdrawFrozen)
-throw new Error("Withdrawals disabled for your account");
+const user = await account.get();
 
-if(amount > this.wallet.balance)
-throw new Error("Insufficient wallet balance");
+let walletRes =
+await databases.listDocuments(
+DATABASE_ID,
+COLLECTION_WALLETS
+);
+
+let wallet =
+walletRes.documents.find(
+w=>w.userId===user.$id
+);
+
+if(!wallet) throw new Error("Wallet not found");
+
+if(amount>wallet.balance)
+throw new Error("Insufficient balance");
 
 await databases.createDocument(
 DATABASE_ID,
 COLLECTION_WITHDRAWALS,
 ID.unique(),
 {
-userId:this.user.$id,
-userName:this.user.name,
+userId:user.$id,
 amount,
 status:"pending",
 createdAt:new Date().toISOString()
@@ -235,86 +282,13 @@ alert(err.message);
 
 },
 
-/* =========================
-LOAD PENDING REQUESTS
-========================= */
+/* ================= LOAD MATURED INVESTMENTS ================= */
 
-async reloadPendingRequests(){
-
-const container =
-document.getElementById("pendingRequests");
-
-if(!container) return;
-
-container.innerHTML="Loading...";
+async loadMaturedInvestments(){
 
 try{
 
-const fundRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_FUNDS,
-[
-Query.equal("userId",this.user.$id),
-Query.equal("status","pending")
-]
-);
-
-const withdrawRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WITHDRAWALS,
-[
-Query.equal("userId",this.user.$id),
-Query.equal("status","pending")
-]
-);
-
-const requests=[
-...fundRes.documents,
-...withdrawRes.documents
-];
-
-container.innerHTML="";
-
-if(requests.length===0){
-
-container.innerText="No pending requests";
-return;
-
-}
-
-requests.forEach(r=>{
-
-const div=document.createElement("div");
-
-div.className="pending-request";
-
-div.innerHTML=`
-
-<p><b>Amount:</b> $${r.amount}</p>
-<p class="pending">Pending Admin Approval</p>
-
-`;
-
-container.appendChild(div);
-
-});
-
-}catch(err){
-
-console.error(err);
-container.innerText="Error loading requests";
-
-}
-
-},
-
-/* =========================
-LOAD MATURED INVESTMENTS
-========================= */
-
-async loadMaturedInvestments(){
+const user = await account.get();
 
 const container =
 document.getElementById("maturedInvestments");
@@ -323,62 +297,86 @@ if(!container) return;
 
 container.innerHTML="";
 
-try{
-
-const res =
+const invRes =
 await databases.listDocuments(
 DATABASE_ID,
-COLLECTION_INVESTMENTS,
-[
-Query.equal("userId",this.user.$id)
-]
+COLLECTION_INVESTMENTS
 );
 
-const investments=res.documents;
+const investments =
+invRes.documents.filter(
+inv=>inv.userId===user.$id
+);
 
-const now=Date.now();
+const now = Date.now();
 
 investments.forEach(inv=>{
-
-const target =
-new Date(inv.createdAt).getTime() +
-(inv.duration*86400000);
-
-if(inv.status==="active" && now>=target){
-
-const expected =
-Math.round(inv.amount*(1+inv.roi/100));
 
 const div=document.createElement("div");
 
 div.className="user-investment";
 
+const expected =
+Math.round(inv.amount*(1+inv.roi/100));
+
+const target =
+new Date(inv.createdAt).getTime() +
+inv.duration*86400000;
+
 div.innerHTML=`
-
-<p>${inv.planName}</p>
-
-<p>$${inv.amount} | ROI ${inv.roi}%</p>
+<p>${inv.planName || "Unnamed Plan"} |
+₦${inv.amount} | ROI ${inv.roi}% |
+Duration ${inv.duration} days</p>
 
 <p style="color:#10b981;font-weight:bold">
-Return: $${expected}
+Expected Return: ₦${expected}
 </p>
-
 `;
 
-const btn=document.createElement("button");
+/* CLAIM BUTTON */
 
-btn.className="claim-btn";
+if(inv.status==="active" && now>=target){
 
-btn.innerText="Claim ROI";
+const claimBtn=document.createElement("button");
 
-btn.onclick=async()=>{
+claimBtn.className="claim-btn";
+
+claimBtn.innerText="Claim ROI";
+
+claimBtn.onclick=async()=>{
+
+try{
+
+await databases.createDocument(
+DATABASE_ID,
+COLLECTION_EARNINGS,
+ID.unique(),
+{
+userId:user.$id,
+investmentId:inv.$id,
+amount:expected,
+status:"approved",
+createdAt:new Date().toISOString()
+}
+);
+
+let walletRes =
+await databases.listDocuments(
+DATABASE_ID,
+COLLECTION_WALLETS
+);
+
+let wallet =
+walletRes.documents.find(
+w=>w.userId===user.$id
+);
 
 await databases.updateDocument(
 DATABASE_ID,
 COLLECTION_WALLETS,
-this.wallet.$id,
+wallet.$id,
 {
-balance:this.wallet.balance+expected
+balance:wallet.balance + expected
 }
 );
 
@@ -391,43 +389,38 @@ status:"completed"
 }
 );
 
-/* UPDATE LOCAL BALANCE */
+document.getElementById("walletBalance")
+.innerText=`₦${wallet.balance + expected}`;
 
-this.wallet.balance+=expected;
+claimBtn.outerHTML=
+`<span class="completed">Completed | ROI Credited</span>`;
 
-const bal=document.getElementById("walletBalance");
+}catch(err){
 
-if(bal){
-
-bal.innerText=
-`$${Number(this.wallet.balance).toLocaleString()}`;
+console.error(err);
+alert("Claim failed");
 
 }
-
-btn.outerHTML=
-`<span class="completed">ROI Claimed</span>`;
 
 };
 
-div.appendChild(btn);
-
-container.appendChild(div);
+div.appendChild(claimBtn);
 
 }
+
+container.appendChild(div);
 
 });
 
 }catch(err){
 
-console.error(err);
+console.error("Error loading investments:",err);
 
 }
 
 },
 
-/* =========================
-LOGOUT
-========================= */
+/* ================= LOGOUT ================= */
 
 async logout(){
 
@@ -435,13 +428,14 @@ try{
 
 await account.deleteSession("current");
 
-}catch(e){
+window.location.href="login.html";
 
-console.log("Session already cleared");
+}catch(err){
+
+console.error(err);
+alert("Logout failed");
 
 }
-
-window.location.href="login.html";
 
 }
 
