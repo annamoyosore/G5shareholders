@@ -1,14 +1,14 @@
 import { account, databases, ID } from './appwrite.js';
 
-const DATABASE_ID = "696f9104001dfedc5e1a";
-const COLLECTION_WALLETS = "wallets";
-const COLLECTION_INVESTMENTS = "investment";
-const COLLECTION_EARNINGS = "collection_earnings";
+const DATABASE_ID="696f9104001dfedc5e1a";
+const COLLECTION_WALLETS="wallets";
+const COLLECTION_INVESTMENTS="investment";
+const COLLECTION_EARNINGS="collection_earnings";
 
-let activeTimers = {};
+let activeTimers={};
 
 
-/* FORMAT USD */
+/* FORMAT */
 
 function formatUSD(amount){
 return new Intl.NumberFormat('en-US',{
@@ -18,35 +18,24 @@ currency:'USD'
 }
 
 
-/* PLAN USER RESTRICTIONS
-Only restrict users you manually add here */
+/* PLAN RESTRICTIONS */
 
-const PLAN_RESTRICTIONS = {
+const PLAN_RESTRICTIONS={
 
-"DANGOTE TRUCKS":{
-blockedUsers:[]
-},
-
-"RAW-GOLD":{
-blockedUsers:[]
-}
+"DANGOTE TRUCKS":{blockedUsers:[]},
+"RAW-GOLD":{blockedUsers:[]}
 
 };
 
 
-/* CHECK IF USER CAN ACCESS PLAN */
-
 function checkPlanAccess(planName,user){
 
-const rule = PLAN_RESTRICTIONS[planName];
+const rule=PLAN_RESTRICTIONS[planName];
 
 if(!rule) return true;
 
-const blocked = rule.blockedUsers || [];
-
-if(blocked.includes(user.$id)) return false;
-
-if(blocked.includes(user.name)) return false;
+if(rule.blockedUsers.includes(user.$id)) return false;
+if(rule.blockedUsers.includes(user.name)) return false;
 
 return true;
 
@@ -54,204 +43,39 @@ return true;
 
 
 
-/* START INVESTMENT COUNTDOWN */
-
-function startCountdown(inv, elementId, containerDiv){
-
-const el = document.getElementById(elementId);
-
-if(!el) return;
-
-const targetTime =
-new Date(inv.createdAt).getTime() +
-(inv.duration * 24 * 60 * 60 * 1000);
-
-
-function update(){
-
-const now = Date.now();
-
-const distance = targetTime - now;
-
-
-/* INVESTMENT MATURED */
-
-if(distance <= 0){
-
-el.innerHTML="✅ Matured";
-
-if(inv.status==="active" && !containerDiv.querySelector(".claim-btn")){
-
-const claimBtn=document.createElement("button");
-
-claimBtn.className="claim-btn";
-
-claimBtn.innerText="Claim ROI";
-
-
-claimBtn.onclick = async()=>{
-
-try{
-
-const expectedReturn =
-Math.round(inv.amount * (1 + inv.roi / 100));
-
-
-/* FIND USER WALLET */
-
-const walletsRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WALLETS
-);
-
-const wallet =
-walletsRes.documents.find(
-w=>w.userId===inv.userId
-);
-
-if(!wallet) throw new Error("Wallet not found");
-
-
-/* CREDIT WALLET */
-
-await databases.updateDocument(
-DATABASE_ID,
-COLLECTION_WALLETS,
-wallet.$id,
-{
-balance: wallet.balance + expectedReturn
-}
-);
-
-
-/* SAVE EARNINGS RECORD */
-
-await databases.createDocument(
-DATABASE_ID,
-COLLECTION_EARNINGS,
-ID.unique(),
-{
-userId:inv.userId,
-userName:inv.userName,
-investmentId:inv.$id,
-amount:expectedReturn,
-roi:inv.roi,
-planName:inv.planName,
-status:"approved",
-createdAt:new Date()
-}
-);
-
-
-/* MARK INVESTMENT COMPLETED */
-
-await databases.updateDocument(
-DATABASE_ID,
-COLLECTION_INVESTMENTS,
-inv.$id,
-{
-status:"completed"
-}
-);
-
-claimBtn.outerHTML=
-`<span class="success">ROI Claimed</span>`;
-
-setTimeout(()=>{
-loadUserInvestments();
-},1500);
-
-}catch(err){
-
-console.error(err);
-
-alert("Claim failed");
-
-}
-
-};
-
-containerDiv.appendChild(claimBtn);
-
-}
-
-clearInterval(activeTimers[inv.$id]);
-
-return;
-
-}
-
-
-/* COUNTDOWN TIMER */
-
-const days=Math.floor(distance/(1000*60*60*24));
-
-const hours=Math.floor((distance/(1000*60*60))%24);
-
-const minutes=Math.floor((distance/(1000*60))%60);
-
-const seconds=Math.floor((distance/1000)%60);
-
-
-el.innerHTML=
-`<span style="color:#22c55e;font-weight:bold;">
-${days}d ${hours}h ${minutes}m ${seconds}s
-</span>`;
-
-}
-
-update();
-
-activeTimers[inv.$id]=setInterval(update,1000);
-
-}
-
-
-
 /* INVEST FUNCTION */
 
-export async function invest(amount, roi, duration, planName){
+export async function invest(amount,roi,duration,planName){
 
 try{
 
-const user = await account.get();
-
-
-/* CHECK PLAN RESTRICTION */
+const user=await account.get();
 
 if(!checkPlanAccess(planName,user)){
-
-alert("You are restricted from using this investment plan");
-
-throw new Error("User restricted from plan");
-
+alert("You are restricted from this plan");
+return;
 }
 
-
-/* FIND WALLET */
-
-const walletsRes =
+const walletsRes=
 await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_WALLETS
 );
 
-const wallet =
+const wallet=
 walletsRes.documents.find(
 w=>w.userId===user.$id
 );
 
 if(!wallet) throw new Error("Wallet not found");
 
+if(wallet.balance < amount){
+alert("Insufficient balance");
+return;
+}
 
-/* CHECK BALANCE */
 
-if(wallet.balance < amount)
-throw new Error("Insufficient balance");
-
-
-/* DEDUCT BALANCE */
+/* DEDUCT WALLET */
 
 await databases.updateDocument(
 DATABASE_ID,
@@ -277,14 +101,17 @@ roi,
 duration,
 planName,
 status:"active",
-createdAt:new Date()
+createdAt:new Date().toISOString()
 });
+
+alert("Investment successful");
+
+loadUserInvestments();
 
 }catch(err){
 
 console.error(err);
-
-throw err;
+alert("Investment failed");
 
 }
 
@@ -298,16 +125,15 @@ export async function loadUserInvestments(containerId="my-investments"){
 
 try{
 
-const user = await account.get();
+const user=await account.get();
 
-const res =
+const res=
 await databases.listDocuments(
 DATABASE_ID,
 COLLECTION_INVESTMENTS
 );
 
-const investments =
-res.documents.filter(
+const investments=res.documents.filter(
 inv=>inv.userId===user.$id
 );
 
@@ -324,54 +150,24 @@ const div=document.createElement("div");
 
 div.classList.add("user-investment");
 
-
-const expectedReturn =
+const expectedReturn=
 Math.round(inv.amount*(1+inv.roi/100));
-
-
-let statusSection="";
-
-if(inv.status==="completed"){
-
-statusSection=
-`<span class="success">Completed | ROI Credited</span>`;
-
-}
-
 
 div.innerHTML=`
 
 <p><strong>${inv.planName}</strong></p>
 
-<p>
-${formatUSD(inv.amount)} | ROI: ${inv.roi}% | Duration: ${inv.duration} days
-</p>
+<p>${formatUSD(inv.amount)} | ROI ${inv.roi}%</p>
 
-<p style="color:#22c55e;font-weight:bold;">
-Expected Return: ${formatUSD(expectedReturn)}
-</p>
+<p>Expected Return: ${formatUSD(expectedReturn)}</p>
 
-<p>
-Time Remaining:
-<span id="countdown-${inv.$id}">Loading...</span>
+<p>Time Remaining:
+<span id="countdown-${inv.$id}"></span>
 </p>
-
-${statusSection}
 
 `;
 
 container.appendChild(div);
-
-
-if(inv.status==="active"){
-
-startCountdown(
-inv,
-`countdown-${inv.$id}`,
-div
-);
-
-}
 
 });
 
@@ -395,7 +191,7 @@ await account.deleteSession("current");
 
 window.location.href="login.html";
 
-}catch(err){
+}catch{
 
 alert("Logout failed");
 
@@ -404,9 +200,8 @@ alert("Logout failed");
 }
 
 
+/* GLOBAL ACCESS */
 
-/* GLOBAL FUNCTIONS */
-
-window.invest = invest;
-window.loadUserInvestments = loadUserInvestments;
-window.logout = logout;;
+window.invest=invest;
+window.loadUserInvestments=loadUserInvestments;
+window.logout=logout;
