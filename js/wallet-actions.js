@@ -12,431 +12,322 @@ import {
 
 export const walletActions = {
 
-  user:null,
-  wallet:null,
+  user: null,
+  wallet: null,
 
-/* ================= INITIALIZE WALLET ================= */
+/* ================= INITIALIZE ================= */
 
 async initializeWallet(){
 
-try{
+  try{
 
-this.user = await account.get();
+    this.user = await account.get();
 
-/* LOAD WALLET */
+    let walletRes = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTION_WALLETS
+    );
 
-let walletRes = await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WALLETS
-);
+    this.wallet =
+      walletRes.documents.find(w => w.userId === this.user.$id);
 
-this.wallet =
-walletRes.documents.find(w=>w.userId===this.user.$id);
+    if(!this.wallet){
 
-/* AUTO CREATE WALLET */
+      this.wallet = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTION_WALLETS,
+        ID.unique(),
+        {
+          userId: this.user.$id,
+          balance: 0,
+          createdAt: new Date().toISOString()
+        }
+      );
+    }
 
-if(!this.wallet){
+    this.updateBalanceUI(this.wallet.balance);
 
-this.wallet =
-await databases.createDocument(
-DATABASE_ID,
-COLLECTION_WALLETS,
-ID.unique(),
-{
-userId:this.user.$id,
-balance:0,
-createdAt:new Date().toISOString()
-}
-);
+    await this.reloadPendingRequests();
+    await this.loadMaturedInvestments();
 
-}
-
-/* SHOW BALANCE */
-
-const balanceEl =
-document.getElementById("walletBalance");
-
-if(balanceEl){
-
-balanceEl.innerText =
-`₦${Number(this.wallet.balance).toLocaleString()}`;
-
-}
-
-/* LOAD DATA */
-
-await this.reloadPendingRequests();
-await this.loadMaturedInvestments();
-
-}catch(err){
-
-console.error("Wallet initialization error:",err);
-
-/* DO NOT LOGOUT USER */
-
-const balanceEl =
-document.getElementById("walletBalance");
-
-if(balanceEl){
-
-balanceEl.innerText="Error loading wallet";
-
-}
-
-}
-
+  }catch(err){
+    console.error(err);
+  }
 },
 
-/* ================= LOAD PENDING REQUESTS ================= */
-
-async reloadPendingRequests(){
-
-try{
-
-const user = await account.get();
-
-const pendingDiv =
-document.getElementById("pendingRequests");
-
-if(!pendingDiv) return;
-
-pendingDiv.innerHTML="";
-
-const fundRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_FUNDS
-);
-
-const withdrawRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WITHDRAWALS
-);
-
-const pending=[
-
-...fundRes.documents
-.filter(r=>r.userId===user.$id && r.status==="pending")
-.map(r=>({...r,type:"Fund"})),
-
-...withdrawRes.documents
-.filter(r=>r.userId===user.$id && r.status==="pending")
-.map(r=>({...r,type:"Withdrawal"}))
-
-];
-
-if(!pending.length){
-
-pendingDiv.innerText="No pending requests";
-return;
-
-}
-
-pending.forEach(r=>{
-
-const div=document.createElement("div");
-
-div.className="pending-request";
-
-div.innerHTML=`
-<span>${r.type} Request: ₦${r.amount}</span>
-<button>Cancel</button>
-`;
-
-const btn = div.querySelector("button");
-
-btn.onclick = async()=>{
-
-try{
-
-btn.disabled=true;
-btn.innerText="Cancelling...";
-
-await databases.deleteDocument(
-DATABASE_ID,
-r.type==="Fund"
-? COLLECTION_FUNDS
-: COLLECTION_WITHDRAWALS,
-r.$id
-);
-
-await this.reloadPendingRequests();
-
-}catch(err){
-
-console.error(err);
-
-btn.disabled=false;
-btn.innerText="Cancel";
-
-alert("Failed to cancel request");
-
-}
-
-};
-
-pendingDiv.appendChild(div);
-
-});
-
-}catch(err){
-
-console.error("Error loading pending requests:",err);
-
-}
-
+updateBalanceUI(amount){
+  const el = document.getElementById("walletBalance");
+  if(el){
+    el.innerText = `₦${Number(amount).toLocaleString()}`;
+  }
 },
 
 /* ================= REQUEST FUND ================= */
 
 async requestFund(){
 
-try{
+  try{
 
-const amount =
-Number(prompt("Enter amount to request"));
+    const amount = Number(prompt("Enter amount"));
 
-if(!amount || amount<=0)
-throw new Error("Invalid amount");
+    if(!amount || amount <= 0)
+      throw new Error("Invalid amount");
 
-const user = await account.get();
+    const user = await account.get();
 
-await databases.createDocument(
-DATABASE_ID,
-COLLECTION_FUNDS,
-ID.unique(),
-{
-userId:user.$id,
-amount,
-status:"pending",
-createdAt:new Date().toISOString()
-}
-);
+    // ❌ NO wallet update here
+    await databases.createDocument(
+      DATABASE_ID,
+      COLLECTION_FUNDS,
+      ID.unique(),
+      {
+        userId: user.$id,
+        amount,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      }
+    );
 
-alert("Fund request sent");
+    alert("Fund request sent");
 
-await this.reloadPendingRequests();
+    await this.reloadPendingRequests();
 
-}catch(err){
-
-console.error(err);
-alert(err.message);
-
-}
-
+  }catch(err){
+    alert(err.message);
+  }
 },
 
 /* ================= REQUEST WITHDRAW ================= */
 
 async requestWithdrawal(){
 
-try{
+  try{
 
-const amount =
-Number(prompt("Enter withdrawal amount (Min $700)"));
+    const amount = Number(prompt("Enter amount"));
 
-if(!amount || amount<700)
-throw new Error("Minimum withdraw $700");
+    if(!amount || amount <= 0)
+      throw new Error("Invalid amount");
 
-const user = await account.get();
+    const user = await account.get();
 
-let walletRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WALLETS
-);
+    const wallet = await this.getUserWallet(user.$id);
 
-let wallet =
-walletRes.documents.find(
-w=>w.userId===user.$id
-);
+    if(amount > wallet.balance)
+      throw new Error("Insufficient balance");
 
-if(!wallet) throw new Error("Wallet not found");
+    // ❌ NO wallet update here
+    await databases.createDocument(
+      DATABASE_ID,
+      COLLECTION_WITHDRAWALS,
+      ID.unique(),
+      {
+        userId: user.$id,
+        amount,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      }
+    );
 
-if(amount>wallet.balance)
-throw new Error("Insufficient balance");
+    alert("Withdrawal request sent");
 
-await databases.createDocument(
-DATABASE_ID,
-COLLECTION_WITHDRAWALS,
-ID.unique(),
-{
-userId:user.$id,
-amount,
-status:"pending",
-createdAt:new Date().toISOString()
-}
-);
+    await this.reloadPendingRequests();
 
-alert("Withdrawal request sent");
-
-await this.reloadPendingRequests();
-
-}catch(err){
-
-console.error(err);
-alert(err.message);
-
-}
-
+  }catch(err){
+    alert(err.message);
+  }
 },
 
-/* ================= LOAD MATURED INVESTMENTS ================= */
+/* ================= CLAIM ROI ================= */
 
-async loadMaturedInvestments(){
+async claimROI(investmentId){
 
-try{
+  try{
 
-const user = await account.get();
+    const user = await account.get();
 
-const container =
-document.getElementById("maturedInvestments");
+    // 🔒 get fresh investment
+    const inv = await databases.getDocument(
+      DATABASE_ID,
+      COLLECTION_INVESTMENTS,
+      investmentId
+    );
 
-if(!container) return;
+    if(inv.claimed || inv.status === "completed"){
+      throw new Error("Already claimed");
+    }
 
-container.innerHTML="";
+    const now = Date.now();
+    const target =
+      new Date(inv.createdAt).getTime() +
+      inv.duration * 86400000;
 
-const invRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_INVESTMENTS
-);
+    if(now < target){
+      throw new Error("Not matured yet");
+    }
 
-const investments =
-invRes.documents.filter(
-inv=>inv.userId===user.$id
-);
+    const expected =
+      inv.expectedReturn ??
+      Math.round(inv.amount * (1 + inv.roi / 100));
 
-const now = Date.now();
+    /* 💰 CREATE EARNING */
+    await databases.createDocument(
+      DATABASE_ID,
+      COLLECTION_EARNINGS,
+      ID.unique(),
+      {
+        userId: user.$id,
+        investmentId: inv.$id,
+        amount: expected,
+        status: "approved",
+        createdAt: new Date().toISOString()
+      }
+    );
 
-investments.forEach(inv=>{
+    /* 💳 UPDATE WALLET (SAFE) */
+    const wallet = await this.getUserWallet(user.$id);
 
-const div=document.createElement("div");
+    const newBalance = wallet.balance + expected;
 
-div.className="user-investment";
+    await databases.updateDocument(
+      DATABASE_ID,
+      COLLECTION_WALLETS,
+      wallet.$id,
+      {
+        balance: newBalance
+      }
+    );
 
-const expected =
-Math.round(inv.amount*(1+inv.roi/100));
+    /* 🔒 MARK INVESTMENT */
+    await databases.updateDocument(
+      DATABASE_ID,
+      COLLECTION_INVESTMENTS,
+      inv.$id,
+      {
+        status: "completed",
+        claimed: true
+      }
+    );
 
-const target =
-new Date(inv.createdAt).getTime() +
-inv.duration*86400000;
+    this.updateBalanceUI(newBalance);
 
-div.innerHTML=`
-<p>${inv.planName || "Unnamed Plan"} |
-₦${inv.amount} | ROI ${inv.roi}% |
-Duration ${inv.duration} days</p>
+    alert("ROI claimed successfully");
 
-<p style="color:#10b981;font-weight:bold">
-Expected Return: ₦${expected}
-</p>
-`;
-
-/* CLAIM BUTTON */
-
-if(inv.status==="active" && now>=target){
-
-const claimBtn=document.createElement("button");
-
-claimBtn.className="claim-btn";
-
-claimBtn.innerText="Claim ROI";
-
-claimBtn.onclick=async()=>{
-
-try{
-
-await databases.createDocument(
-DATABASE_ID,
-COLLECTION_EARNINGS,
-ID.unique(),
-{
-userId:user.$id,
-investmentId:inv.$id,
-amount:expected,
-status:"approved",
-createdAt:new Date().toISOString()
-}
-);
-
-let walletRes =
-await databases.listDocuments(
-DATABASE_ID,
-COLLECTION_WALLETS
-);
-
-let wallet =
-walletRes.documents.find(
-w=>w.userId===user.$id
-);
-
-await databases.updateDocument(
-DATABASE_ID,
-COLLECTION_WALLETS,
-wallet.$id,
-{
-balance:wallet.balance + expected
-}
-);
-
-await databases.updateDocument(
-DATABASE_ID,
-COLLECTION_INVESTMENTS,
-inv.$id,
-{
-status:"completed"
-}
-);
-
-document.getElementById("walletBalance")
-.innerText=`₦${wallet.balance + expected}`;
-
-claimBtn.outerHTML=
-`<span class="completed">Completed | ROI Credited</span>`;
-
-}catch(err){
-
-console.error(err);
-alert("Claim failed");
-
-}
-
-};
-
-div.appendChild(claimBtn);
-
-}
-
-container.appendChild(div);
-
-});
-
-}catch(err){
-
-console.error("Error loading investments:",err);
-
-}
-
+  }catch(err){
+    alert(err.message);
+  }
 },
 
-/* ================= LOGOUT ================= */
+/* ================= ADMIN: APPROVE FUND ================= */
 
-async logout(){
+async approveFund(fundId){
 
-try{
+  try{
 
-await account.deleteSession("current");
+    const fund = await databases.getDocument(
+      DATABASE_ID,
+      COLLECTION_FUNDS,
+      fundId
+    );
 
-window.location.href="login.html";
+    if(fund.status === "approved"){
+      throw new Error("Already approved");
+    }
 
-}catch(err){
+    const wallet = await this.getUserWallet(fund.userId);
 
-console.error(err);
-alert("Logout failed");
+    const newBalance = wallet.balance + fund.amount;
 
-}
+    /* UPDATE FUND */
+    await databases.updateDocument(
+      DATABASE_ID,
+      COLLECTION_FUNDS,
+      fundId,
+      {
+        status: "approved",
+        approvedAt: new Date().toISOString()
+      }
+    );
 
+    /* UPDATE WALLET */
+    await databases.updateDocument(
+      DATABASE_ID,
+      COLLECTION_WALLETS,
+      wallet.$id,
+      {
+        balance: newBalance
+      }
+    );
+
+  }catch(err){
+    console.error(err);
+  }
+},
+
+/* ================= ADMIN: APPROVE WITHDRAW ================= */
+
+async approveWithdrawal(withdrawId){
+
+  try{
+
+    const withdraw = await databases.getDocument(
+      DATABASE_ID,
+      COLLECTION_WITHDRAWALS,
+      withdrawId
+    );
+
+    if(withdraw.status === "approved"){
+      throw new Error("Already approved");
+    }
+
+    const wallet = await this.getUserWallet(withdraw.userId);
+
+    if(withdraw.amount > wallet.balance){
+      throw new Error("Insufficient balance");
+    }
+
+    const newBalance = wallet.balance - withdraw.amount;
+
+    /* UPDATE WITHDRAW */
+    await databases.updateDocument(
+      DATABASE_ID,
+      COLLECTION_WITHDRAWALS,
+      withdrawId,
+      {
+        status: "approved",
+        approvedAt: new Date().toISOString()
+      }
+    );
+
+    /* UPDATE WALLET */
+    await databases.updateDocument(
+      DATABASE_ID,
+      COLLECTION_WALLETS,
+      wallet.$id,
+      {
+        balance: newBalance
+      }
+    );
+
+  }catch(err){
+    console.error(err);
+  }
+},
+
+/* ================= HELPERS ================= */
+
+async getUserWallet(userId){
+
+  const walletRes = await databases.listDocuments(
+    DATABASE_ID,
+    COLLECTION_WALLETS
+  );
+
+  const wallet =
+    walletRes.documents.find(w => w.userId === userId);
+
+  if(!wallet) throw new Error("Wallet not found");
+
+  return wallet;
 }
 
 };
