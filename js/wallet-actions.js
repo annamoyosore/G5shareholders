@@ -24,30 +24,10 @@ async initializeWallet(){
 
     this.user = await account.get();
 
-    /* ✅ CORRECT QUERY */
-    const walletRes = await databases.listDocuments(
-      DATABASE_ID,
-      COLLECTION_WALLETS,
-      [Query.equal("userId", this.user.$id)]
-    );
+    /* ✅ AUTO GET OR CREATE WALLET */
+    this.wallet = await this.getOrCreateWallet(this.user.$id);
 
-    this.wallet = walletRes.documents[0];
-
-    /* ✅ CREATE IF NOT EXISTS */
-    if(!this.wallet){
-
-      this.wallet = await databases.createDocument(
-        DATABASE_ID,
-        COLLECTION_WALLETS,
-        ID.unique(),
-        {
-          userId: this.user.$id,
-          balance: 0,
-          createdAt: new Date().toISOString()
-        }
-      );
-    }
-
+    /* ✅ UPDATE UI */
     this.updateBalanceUI(this.wallet.balance);
 
     await this.reloadPendingRequests();
@@ -63,6 +43,37 @@ async initializeWallet(){
       el.innerText = "Error loading wallet";
     }
   }
+},
+
+/* ================= GET OR CREATE WALLET ================= */
+
+async getOrCreateWallet(userId){
+
+  const walletRes = await databases.listDocuments(
+    DATABASE_ID,
+    COLLECTION_WALLETS,
+    [Query.equal("userId", userId)]
+  );
+
+  let wallet = walletRes.documents[0];
+
+  if(!wallet){
+
+    console.log("Creating wallet for user:", userId);
+
+    wallet = await databases.createDocument(
+      DATABASE_ID,
+      COLLECTION_WALLETS,
+      ID.unique(),
+      {
+        userId,
+        balance: 0,
+        createdAt: new Date().toISOString()
+      }
+    );
+  }
+
+  return wallet;
 },
 
 /* ================= UI ================= */
@@ -121,7 +132,7 @@ async requestWithdrawal(){
 
     const user = await account.get();
 
-    const wallet = await this.getUserWallet(user.$id);
+    const wallet = await this.getOrCreateWallet(user.$id);
 
     if(amount > wallet.balance)
       throw new Error("Insufficient balance");
@@ -193,7 +204,7 @@ async claimROI(investmentId){
     );
 
     /* UPDATE WALLET */
-    const wallet = await this.getUserWallet(user.$id);
+    const wallet = await this.getOrCreateWallet(user.$id);
 
     const newBalance = wallet.balance + expected;
 
@@ -242,7 +253,7 @@ async approveFund(fundId){
       throw new Error("Already approved");
     }
 
-    const wallet = await this.getUserWallet(fund.userId);
+    const wallet = await this.getOrCreateWallet(fund.userId);
 
     const newBalance = wallet.balance + fund.amount;
 
@@ -286,7 +297,7 @@ async approveWithdrawal(withdrawId){
       throw new Error("Already approved");
     }
 
-    const wallet = await this.getUserWallet(withdraw.userId);
+    const wallet = await this.getOrCreateWallet(withdraw.userId);
 
     if(withdraw.amount > wallet.balance){
       throw new Error("Insufficient balance");
@@ -316,23 +327,6 @@ async approveWithdrawal(withdrawId){
   }catch(err){
     console.error(err);
   }
-},
-
-/* ================= HELPERS ================= */
-
-async getUserWallet(userId){
-
-  const walletRes = await databases.listDocuments(
-    DATABASE_ID,
-    COLLECTION_WALLETS,
-    [Query.equal("userId", userId)]
-  );
-
-  const wallet = walletRes.documents[0];
-
-  if(!wallet) throw new Error("Wallet not found");
-
-  return wallet;
 }
 
 };
