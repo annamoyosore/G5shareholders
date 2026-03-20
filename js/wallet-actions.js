@@ -7,7 +7,8 @@ import {
   COLLECTION_WITHDRAWALS,
   COLLECTION_WALLETS,
   COLLECTION_INVESTMENTS,
-  COLLECTION_EARNINGS
+  COLLECTION_EARNINGS,
+  Query
 } from './appwrite.js';
 
 export const walletActions = {
@@ -23,14 +24,16 @@ async initializeWallet(){
 
     this.user = await account.get();
 
-    let walletRes = await databases.listDocuments(
+    /* ✅ CORRECT QUERY */
+    const walletRes = await databases.listDocuments(
       DATABASE_ID,
-      COLLECTION_WALLETS
+      COLLECTION_WALLETS,
+      [Query.equal("userId", this.user.$id)]
     );
 
-    this.wallet =
-      walletRes.documents.find(w => w.userId === this.user.$id);
+    this.wallet = walletRes.documents[0];
 
+    /* ✅ CREATE IF NOT EXISTS */
     if(!this.wallet){
 
       this.wallet = await databases.createDocument(
@@ -51,9 +54,18 @@ async initializeWallet(){
     await this.loadMaturedInvestments();
 
   }catch(err){
-    console.error(err);
+
+    console.error("Wallet Init Error:", err);
+    alert(err.message);
+
+    const el = document.getElementById("walletBalance");
+    if(el){
+      el.innerText = "Error loading wallet";
+    }
   }
 },
+
+/* ================= UI ================= */
 
 updateBalanceUI(amount){
   const el = document.getElementById("walletBalance");
@@ -75,7 +87,6 @@ async requestFund(){
 
     const user = await account.get();
 
-    // ❌ NO wallet update here
     await databases.createDocument(
       DATABASE_ID,
       COLLECTION_FUNDS,
@@ -115,7 +126,6 @@ async requestWithdrawal(){
     if(amount > wallet.balance)
       throw new Error("Insufficient balance");
 
-    // ❌ NO wallet update here
     await databases.createDocument(
       DATABASE_ID,
       COLLECTION_WITHDRAWALS,
@@ -145,7 +155,6 @@ async claimROI(investmentId){
 
     const user = await account.get();
 
-    // 🔒 get fresh investment
     const inv = await databases.getDocument(
       DATABASE_ID,
       COLLECTION_INVESTMENTS,
@@ -169,7 +178,7 @@ async claimROI(investmentId){
       inv.expectedReturn ??
       Math.round(inv.amount * (1 + inv.roi / 100));
 
-    /* 💰 CREATE EARNING */
+    /* CREATE EARNING */
     await databases.createDocument(
       DATABASE_ID,
       COLLECTION_EARNINGS,
@@ -183,7 +192,7 @@ async claimROI(investmentId){
       }
     );
 
-    /* 💳 UPDATE WALLET (SAFE) */
+    /* UPDATE WALLET */
     const wallet = await this.getUserWallet(user.$id);
 
     const newBalance = wallet.balance + expected;
@@ -197,7 +206,7 @@ async claimROI(investmentId){
       }
     );
 
-    /* 🔒 MARK INVESTMENT */
+    /* MARK INVESTMENT */
     await databases.updateDocument(
       DATABASE_ID,
       COLLECTION_INVESTMENTS,
@@ -237,7 +246,6 @@ async approveFund(fundId){
 
     const newBalance = wallet.balance + fund.amount;
 
-    /* UPDATE FUND */
     await databases.updateDocument(
       DATABASE_ID,
       COLLECTION_FUNDS,
@@ -248,7 +256,6 @@ async approveFund(fundId){
       }
     );
 
-    /* UPDATE WALLET */
     await databases.updateDocument(
       DATABASE_ID,
       COLLECTION_WALLETS,
@@ -287,7 +294,6 @@ async approveWithdrawal(withdrawId){
 
     const newBalance = wallet.balance - withdraw.amount;
 
-    /* UPDATE WITHDRAW */
     await databases.updateDocument(
       DATABASE_ID,
       COLLECTION_WITHDRAWALS,
@@ -298,7 +304,6 @@ async approveWithdrawal(withdrawId){
       }
     );
 
-    /* UPDATE WALLET */
     await databases.updateDocument(
       DATABASE_ID,
       COLLECTION_WALLETS,
@@ -319,11 +324,11 @@ async getUserWallet(userId){
 
   const walletRes = await databases.listDocuments(
     DATABASE_ID,
-    COLLECTION_WALLETS
+    COLLECTION_WALLETS,
+    [Query.equal("userId", userId)]
   );
 
-  const wallet =
-    walletRes.documents.find(w => w.userId === userId);
+  const wallet = walletRes.documents[0];
 
   if(!wallet) throw new Error("Wallet not found");
 
