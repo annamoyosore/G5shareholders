@@ -33,7 +33,7 @@ export const DATABASE_ID = "6970722d00269d80304f";
 COLLECTIONS
 ========================= */
 
-export const COLLECTION_WALLETS      = "wallets";
+export const COLLECTION_WALLETS      = "wallet";
 export const COLLECTION_INVESTMENTS  = "investment";
 export const COLLECTION_BANK         = "bank_details";
 
