@@ -164,7 +164,7 @@ ID.unique(),
 {
 userId:user.$id,
 userName:name,
-balance:0,
+balance:100,
 createdAt:new Date().toISOString()
 }
 );
