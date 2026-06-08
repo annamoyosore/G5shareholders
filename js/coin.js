@@ -35,11 +35,11 @@ CRYPTO WALLET ADDRESSES
 
 const addresses={
 
-bnb:"ueiejdkek",
-eth:"0ejsidkdk",
-btc:"1XXXXXXXXXXXXXXXXXXXXX",
-usdt:"TXXXXXXXXXXXXXXXXXXXX",
-sol:"XXXXXXXXXXXXXXXXXXXXX"
+bnb:"0x47E11Fd3e3cEF8Ea9beC9805D1F27dBe775B1D69",
+eth:"0x47E11Fd3e3cEF8Ea9beC9805D1F27dBe775B1D69",
+btc:"bc1qsxzmwlwn2j9g2rm6352y80u38vz2a7p326m4rv",
+usdt trc:"TWpZiDpjejjyUaxDUwnSGbw1dH1JQvzaAy",
+sol:"5a39EMz6Hm3k1gFcMmTxojPijfiDzNxQcWhDpRUtgDRv"
 
 };
 
